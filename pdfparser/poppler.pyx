@@ -45,6 +45,13 @@ cdef extern from "PDFDoc.h":
            void *abortCheckCbkData = NULL,
             GBool (*annotDisplayDecideCbk)(Annot *annot, void *user_data) = NULL,
             void *annotDisplayDecideCbkData = NULL, GBool copyXRef = False)
+        void displayPageSlice(OutputDev *out, int page,
+           double hDPI, double vDPI, int rotate,
+           GBool useMediaBox, GBool crop, GBool printing,
+           int x, int y, int w, int h,
+           void *abortCheckCbkData = NULL,
+            GBool (*annotDisplayDecideCbk)(Annot *annot, void *user_data) = NULL,
+            void *annotDisplayDecideCbkData = NULL, GBool copyXRef = False)
         double getPageMediaWidth(int page)
         double getPageMediaHeight(int page)
         
@@ -131,8 +138,11 @@ cdef class Document:
             return self._doc.getNumPages()  
         
     cdef void render_page(self, int page_no, OutputDev *dev):
-        self._doc.displayPage(dev, page_no, RESOLUTION, RESOLUTION, 0, True, False, False)
+        self._doc.displayPage     (dev, page_no, RESOLUTION, RESOLUTION, 0, True, False, False)
      
+    cdef void render_page_slice(self, int page_no, OutputDev *dev, int x, int y, int w, int h):
+        self._doc.displayPageSlice(dev, page_no, RESOLUTION, RESOLUTION, 0, True, False, False, x, y, w, h)
+
     cdef object get_page_size(self, page_no):
             cdef double w,h
             w=self._doc.getPageMediaWidth(page_no)
@@ -184,6 +194,13 @@ cdef class Page:
         f=Flow(self)
         self.curr_flow=self.curr_flow.getNext()
         return f
+
+    def slice(self, int x, int y, int w, int h):
+        dev = new TextOutputDev(NULL, self.doc.phys_layout, self.doc.fixed_pitch, False, False)
+        self.doc.render_page_slice(self.page_no, <OutputDev*> dev, x, y, w, h)
+        self.page = dev.takeText()
+        del dev
+        self.curr_flow = self.page.getFlows()
             
     property page_no:
         def __get__(self):
@@ -193,7 +210,7 @@ cdef class Page:
         """Size of page as (width, height)"""
         def __get__(self):
             return self.doc.get_page_size(self.page_no)
-        
+
 cdef class Flow:
     cdef: 
         TextFlow *flow
