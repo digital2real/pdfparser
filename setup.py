@@ -63,14 +63,6 @@ def pkgconfig(*packages, **kw):
             config.setdefault(distutils_key, []).extend([i[n:] for i in items])
     return config
 
-# Poppler 0.72.0+ GooString.h uses c_str() instead of getCString()
-def use_poppler_cstring(path):
-    for el in path.split(os.path.sep)[::-1]:
-        version = el.split('.')
-        if len(version) == 3 and (int(version[0]) > 0 or int(version[1]) >= 72):
-            return True
-    return False
-
 # Mac OS build fix:
 mac_compile_args = ["-std=c++11", "-stdlib=libc++", "-mmacosx-version-min=10.7"]
 POPPLER_ROOT = os.environ.get('POPPLER_ROOT', None)
@@ -82,7 +74,7 @@ if POPPLER_ROOT:
                             library_dirs=[POPPLER_ROOT, POPPLER_CPP_LIB_DIR],
                             runtime_library_dirs=['$ORIGIN'],
                             libraries=['poppler','poppler-cpp'],
-                            cython_compile_time_env={'USE_CSTRING': use_poppler_cstring(POPPLER_ROOT)})
+                            cython_compile_time_env={'USE_CSTRING': True})
     package_data = {'pdfparser': ['*.so.*', 'pdfparser/*.so.*']}
 else:
     poppler_config = pkgconfig("poppler", "poppler-cpp")
@@ -92,7 +84,7 @@ else:
         poppler_config.setdefault('extra_link_args', []).extend(mac_compile_args)
 
     poppler_config.setdefault('cython_compile_time_env', {}).update({
-        'USE_CSTRING': use_poppler_cstring(poppler_config['include_dirs'][0])
+        'USE_CSTRING': True
     })
     poppler_ext = Extension('pdfparser.poppler', ['pdfparser/poppler.pyx'], language='c++', **poppler_config)
     package_data = {}
@@ -120,9 +112,7 @@ setup(name='pdfparser',
 
           'License :: OSI Approved :: GPLv3',
 
-          'Programming Language :: Python :: 2.7',
-          'Programming Language :: Python :: 3.5',
-          'Programming Language :: Python :: 3.6',
+          'Programming Language :: Python :: 3.8',
       ],
       description="python bindings for poppler",
       long_description="Binding for libpoppler with a focus on fast text extraction from PDF documents.",
@@ -135,5 +125,5 @@ setup(name='pdfparser',
       cmdclass={"build_ext": build_ext},
       ext_modules=[poppler_ext], # a workaround since Extension is an old-style class
                                  # removed cythonize for the list in ext_modules
-      zip_safe=False
+      zip_safe=False,
       )
