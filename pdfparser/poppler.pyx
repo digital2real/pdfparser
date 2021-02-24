@@ -202,7 +202,7 @@ cdef class Page:
         return f
 
     def slice(self, int x, int y, int w, int h):
-        dev = new TextOutputDev(NULL, self.doc.phys_layout, self.doc.fixed_pitch, False, False)
+        dev = new TextOutputDev(NULL, self.doc.phys_layout, self.doc.fixed_pitch, False, False, True)
         self.doc.render_page_slice(self.page_no, <OutputDev*> dev, x, y, w, h)
         self.page = dev.takeText()
         del dev
