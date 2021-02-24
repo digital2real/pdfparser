@@ -6,10 +6,11 @@ import subprocess
 import sys
 import re
 
-from setuptools import Extension, setup
+from setuptools import setup
 
 try:
     from Cython.Build import cythonize
+    from Cython.Distutils import Extension, build_ext
 except ImportError:
     print('You need to install cython first - sudo pip install cython', file=sys.stderr)
     sys.exit(1)
@@ -72,13 +73,19 @@ if POPPLER_ROOT:
                             include_dirs=[POPPLER_ROOT, os.path.join(POPPLER_ROOT, 'poppler')],
                             library_dirs=[POPPLER_ROOT, POPPLER_CPP_LIB_DIR],
                             runtime_library_dirs=['$ORIGIN'],
-                            libraries=['poppler','poppler-cpp'])
+                            libraries=['poppler','poppler-cpp'],
+                            cython_compile_time_env={'USE_CSTRING': True})
     package_data = {'pdfparser': ['*.so.*', 'pdfparser/*.so.*']}
 else:
     poppler_config = pkgconfig("poppler", "poppler-cpp")
     # Mac OS build fix:
     if sys.platform == 'darwin':
         poppler_config.setdefault('extra_compile_args', []).extend(mac_compile_args)
+        poppler_config.setdefault('extra_link_args', []).extend(mac_compile_args)
+
+    poppler_config.setdefault('cython_compile_time_env', {}).update({
+        'USE_CSTRING': True
+    })
     poppler_ext = Extension('pdfparser.poppler', ['pdfparser/poppler.pyx'], language='c++', **poppler_config)
     package_data = {}
 
@@ -86,7 +93,7 @@ else:
 pkg_file= os.path.join(os.path.split(__file__)[0], 'pdfparser', '__init__.py')
 m=re.search(r"__version__\s*=\s*'([\d.]+)'", open(pkg_file).read())
 if not m:
-    print >>sys.stderr, 'Cannot find version of package'
+    print (sys.stderr, 'Cannot find version of package')
     sys.exit(1)
 version= m.group(1)
 
@@ -105,9 +112,7 @@ setup(name='pdfparser',
 
           'License :: OSI Approved :: GPLv3',
 
-          'Programming Language :: Python :: 2.7',
-          'Programming Language :: Python :: 3.5',
-          'Programming Language :: Python :: 3.6',
+          'Programming Language :: Python :: 3.8',
       ],
       description="python bindings for poppler",
       long_description="Binding for libpoppler with a focus on fast text extraction from PDF documents.",
@@ -117,6 +122,8 @@ setup(name='pdfparser',
       packages=['pdfparser', ],
       package_data=package_data,
       include_package_data=True,
-      ext_modules=cythonize([poppler_ext]), # a workaround since Extension is an old-style class
-      zip_safe=False
+      cmdclass={"build_ext": build_ext},
+      ext_modules=[poppler_ext], # a workaround since Extension is an old-style class
+                                 # removed cythonize for the list in ext_modules
+      zip_safe=False,
       )
